@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ Selfbot Dashboard</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .header h1 { color: #58a6ff; font-size: 28px; }
+        .status-badge {
+            padding: 8px 18px;
+            border-radius: 30px;
+            background: #161b22;
+            border: 1px solid #30363d;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .online { background: #2ea043; }
+        .offline { background: #8b949e; }
+        .error { background: #da3633; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card .label { color: #8b949e; font-size: 13px; }
+        .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 5px; }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        .card h2 { margin-bottom: 20px; font-size: 18px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; color: #8b949e; font-size: 13px; margin-bottom: 5px; }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            color: #e6edf3;
+            font-size: 14px;
+        }
+        .form-group input:focus { outline: none; border-color: #58a6ff; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+        .btn-success { background: #2ea043; color: white; }
+        .btn-danger { background: #da3633; color: white; }
+        .btn-primary { background: #1f6feb; color: white; }
+        .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+        .log-container { max-height: 400px; overflow-y: auto; }
+        .log-item {
+            display: flex;
+            gap: 15px;
+            padding: 10px 14px;
+            background: #0d1117;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid #58a6ff;
+        }
+        .log-item.ticket { border-left-color: #d29922; }
+        .log-item.member { border-left-color: #2ea043; }
+        .log-item.error { border-left-color: #da3633; }
+        .log-item .user { font-weight: 600; color: #58a6ff; }
+        .log-item .meta { color: #8b949e; font-size: 12px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <h1>🛡️ Selfbot Dashboard</h1>
+        <div class="status-badge">
+            <span class="status-dot offline" id="statusDot"></span>
+            <span id="statusText">⏹️ متوقف</span>
+        </div>
+    </header>
+
+    <div class="grid">
+        <div class="stat-card"><div class="label">📊 التقارير</div><div class="value" id="totalLogs">0</div></div>
+        <div class="stat-card"><div class="label">🎫 التذاكر</div><div class="value" id="ticketCount">0</div></div>
+        <div class="stat-card"><div class="label">👤 أعضاء جدد</div><div class="value" id="memberCount">0</div></div>
+        <div class="stat-card"><div class="label">⏱️ وقت التشغيل</div><div class="value" id="uptimeStats">--</div></div>
+    </div>
+
+    <div class="card">
+        <h2>⚙️ الإعدادات</h2>
+        <div class="form-group"><label>🔑 التوكن</label><input type="password" id="tokenInput" placeholder="ضع التوكن هنا"></div>
+        <div class="form-row">
+            <div class="form-group"><label>📢 معرف قناة اللوج</label><input type="text" id="channelInput" placeholder="معرف القناة"></div>
+            <div class="form-group"><label>🔍 كلمات مفتاحية</label><input type="text" id="keywordsInput" placeholder="ticket,support,purchase"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-secondary" id="saveBtn">💾 حفظ</button>
+            <button class="btn btn-success" id="startBtn">▶️ تشغيل</button>
+            <button class="btn btn-danger" id="stopBtn">⏹️ إيقاف</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📋 السجلات</h2>
+        <div class="log-container" id="logContainer"><div style="text-align:center;color:#8b949e;padding:30px;">📭 لا توجد سجلات</div></div>
+    </div>
+</div>
+
+<script>
+const API = '';
+async function loadStatus() {
+    try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const dot = document.getElementById('statusDot');
+        const text = document.getElementById('statusText');
+        if (data.status === 'running') { dot.className = 'status-dot online'; text.textContent = '🟢 شغال'; }
+        else if (data.status === 'error') { dot.className = 'status-dot error'; text.textContent = '🔴 خطأ'; }
+        else { dot.className = 'status-dot offline'; text.textContent = '⏹️ متوقف'; }
+        if (data.config) {
+            document.getElementById('tokenInput').value = data.config.token || '';
+            document.getElementById('channelInput').value = data.config.logChannelId || '';
+            document.getElementById('keywordsInput').value = (data.config.keywords || []).join(', ');
+        }
+        const u = data.uptime || 0;
+        const h = Math.floor(u/3600), m = Math.floor((u%3600)/60), s = u%60;
+        document.getElementById('uptimeStats').textContent = h>0?`${h}h ${m}m`:`${m}m ${s}s`;
+        loadLogs();
+    } catch(e) { console.error(e); }
+}
+
+async function loadLogs() {
+    try {
+        const res = await fetch('/api/logs?limit=30');
+        const logs = await res.json();
+        const container = document.getElementById('logContainer');
+        if (logs.length === 0) { container.innerHTML = '<div style="text-align:center;color:#8b949e;padding:30px;">📭 لا توجد سجلات</div>'; return; }
+        let html = '', tickets=0, members=0;
+        logs.forEach(l => {
+            if (l.type === 'ticket') tickets++;
+            if (l.type === 'member') members++;
+            const icon = l.type === 'ticket' ? '🎫' : l.type === 'member' ? '👤' : l.type === 'error' ? '❌' : '📝';
+            const cls = l.type === 'ticket' ? 'ticket' : l.type === 'member' ? 'member' : l.type === 'error' ? 'error' : '';
+            const time = new Date(l.timestamp).toLocaleString('ar-EG');
+            html += `<div class="log-item ${cls}">
+                <span>${icon}</span>
+                <div><span class="user">${l.user || 'System'}</span>
+                ${l.message ? `<div>${l.message}</div>` : ''}
+                ${l.content ? `<div>📨 ${l.content}</div>` : ''}
+                <div class="meta">🕒 ${time}</div></div>
+            </div>`;
+        });
+        container.innerHTML = html;
+        document.getElementById('totalLogs').textContent = logs.length;
+        document.getElementById('ticketCount').textContent = tickets;
+        document.getElementById('memberCount').textContent = members;
+    } catch(e) { console.error(e); }
+}
+
+document.getElementById('saveBtn').onclick = async () => {
+    const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: document.getElementById('tokenInput').value,
+            logChannelId: document.getElementById('channelInput').value,
+            keywords: document.getElementById('keywordsInput').value
+        })
+    });
+    const data = await res.json();
+    alert(data.success ? '✅ تم الحفظ' : '❌ فشل الحفظ');
+};
+
+document.getElementById('startBtn').onclick = async () => {
+    const res = await fetch('/api/start', { method: 'POST' });
+    const data = await res.json();
+    alert(data.success ? '✅ تم التشغيل' : '❌ ' + (data.error || 'فشل'));
+    loadStatus();
+};
+
+document.getElementById('stopBtn').onclick = async () => {
+    await fetch('/api/stop', { method: 'POST' });
+    alert('⏹️ تم الإيقاف');
+    loadStatus();
+};
+
+setInterval(loadStatus, 5000);
+loadStatus();
+</script>
+</body>
+</html>
