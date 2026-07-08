@@ -4,7 +4,7 @@
   "description": "Discord Selfbot Monitor",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "discord.js-selfbot-v13": "3.0.0"
