@@ -1,8 +1,8 @@
 const { Client } = require('discord.js-selfbot-v13');
 
 const cfg = {
-  token: 'MTUxNDY4MjkyMzg4ODkzOTAyOQ.GqnJbE.4KRh09Ka7302euA0e3WKJa7n6AwQlyCTf4Tcok',
-  logChannelId: '1524473600575541271',
+  token: process.env.TOKEN,
+  logChannelId: '1524483171889053928',
 };
 
 const client = new Client();
