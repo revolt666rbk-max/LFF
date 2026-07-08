@@ -18,12 +18,27 @@ app.use(express.json());
 const CONFIG_FILE = path.join(__dirname, 'data', 'config.json');
 const LOGS_FILE = path.join(__dirname, 'data', 'logs.json');
 
+// Create data folder if it doesn't exist
 if (!fs.existsSync('data')) fs.mkdirSync('data');
 
+// Read config with error handling
 let config = {};
 if (fs.existsSync(CONFIG_FILE)) {
-    config = JSON.parse(fs.readFileSync(CONFIG_FILE));
+    try {
+        const raw = fs.readFileSync(CONFIG_FILE, 'utf8');
+        config = JSON.parse(raw);
+    } catch (err) {
+        console.log('[!] Config file is corrupted or empty. Creating new one...');
+        config = {
+            token: '',
+            logChannelId: '',
+            status: 'stopped',
+            keywords: ['ticket', 'support', 'purchase', 'buy', 'help', 'open', 'new']
+        };
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    }
 } else {
+    console.log('[!] Config file not found. Creating new one...');
     config = {
         token: '',
         logChannelId: '',
@@ -33,10 +48,25 @@ if (fs.existsSync(CONFIG_FILE)) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 }
 
+// Read logs with error handling
 let logs = [];
 if (fs.existsSync(LOGS_FILE)) {
-    logs = JSON.parse(fs.readFileSync(LOGS_FILE));
+    try {
+        const raw = fs.readFileSync(LOGS_FILE, 'utf8');
+        logs = JSON.parse(raw);
+    } catch (err) {
+        console.log('[!] Logs file is corrupted or empty. Creating new one...');
+        logs = [];
+        fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2));
+    }
+} else {
+    console.log('[!] Logs file not found. Creating new one...');
+    logs = [];
+    fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2));
 }
+
+console.log('[+] Config loaded successfully.');
+console.log('[+] Logs loaded successfully.');
 
 // ========== Discord Client ==========
 let client = null;
