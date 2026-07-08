@@ -1,6 +1,5 @@
 // ============================================================
-// SELFBOT MONITOR – Multi-Account Version (CAT for Butter)
-// No Ticket System – Only Member Join Monitoring
+// SELFBOT MONITOR – Full Version with Ticket System (CAT for Butter)
 // ============================================================
 
 const express = require('express');
@@ -26,10 +25,10 @@ if (fs.existsSync(CONFIG_FILE)) {
     config = JSON.parse(fs.readFileSync(CONFIG_FILE));
 } else {
     config = {
-        accounts: [
-            { token: '', logChannelId: '' }
-        ],
-        status: 'stopped'
+        token: '',
+        logChannelId: '',
+        status: 'stopped',
+        keywords: ['ticket', 'support', 'purchase', 'buy', 'help', 'open', 'new']
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 }
@@ -40,7 +39,7 @@ if (fs.existsSync(LOGS_FILE)) {
 }
 
 // ========== Discord Client ==========
-let clients = [];
+let client = null;
 let botStatus = 'stopped';
 let startTime = null;
 
@@ -90,7 +89,7 @@ async function warmGuildCache(guild) {
     }
 }
 
-async function warmAllGuilds(client) {
+async function warmAllGuilds() {
     const guilds = [...client.guilds.cache.values()];
     console.log(`Warming caches for ${guilds.length} guild(s)…`);
     await Promise.all(guilds.map(async (g) => {
@@ -100,157 +99,171 @@ async function warmAllGuilds(client) {
     console.log('Cache warm-up complete.');
 }
 
-// ========== Start All Bots ==========
-function startAllBots() {
+// ========== Start Bot ==========
+function startBot() {
     if (botStatus === 'running') return;
-    if (!config.accounts || config.accounts.length === 0) {
-        addLog({ type: 'error', message: '❌ No accounts configured' });
+    if (!config.token) {
+        addLog({ type: 'error', message: '❌ No token provided' });
         return;
     }
 
-    botStatus = 'running';
+    client = new Client();
     startTime = Date.now();
-    config.status = 'running';
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 
-    config.accounts.forEach((account, index) => {
-        if (!account.token || account.token === '') {
-            console.log(`⚠️ Account ${index + 1} has no token, skipping...`);
-            return;
+    client.once('ready', async () => {
+        botStatus = 'running';
+        config.status = 'running';
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+        const tag = client.user.tag || client.user.username;
+        console.log(`✅ Logged in as ${tag}`);
+        addLog({ type: 'system', message: `✅ Bot logged in as ${tag}` });
+        await warmAllGuilds();
+    });
+
+    // ===== Member Join Event =====
+    client.on('guildMemberAdd', async (member) => {
+        try {
+            const guild = member.guild;
+            if (!guild.members.cache.has(member.id)) {
+                await guild.members.fetch(member.id).catch(() => null);
+            }
+
+            const channel = client.channels.cache.get(config.logChannelId) ||
+                (await client.channels.fetch(config.logChannelId).catch(() => null));
+            if (!channel) return;
+
+            const user = member.user;
+            const createdDate = new Date(user.createdTimestamp || Date.now()).toLocaleString();
+            const joinedDate = member.joinedTimestamp ? new Date(member.joinedTimestamp).toLocaleString() : 'Unknown';
+            const avatarUrl = (typeof user.displayAvatarURL === 'function') ? user.displayAvatarURL({ size: 512 }) : null;
+            const { flagsArr, bannerUrl } = await enrichUser(user);
+            const nickname = member.nickname || 'None';
+            const pending = typeof member.pending === 'boolean' ? (member.pending ? 'Yes' : 'No') : 'Unknown';
+            const boostingSince = member.premiumSinceTimestamp ? `<t:${Math.floor(member.premiumSinceTimestamp / 1000)}:F>` : 'No';
+            const timedOutUntil = member.communicationDisabledUntilTimestamp ? `<t:${Math.floor(member.communicationDisabledUntilTimestamp / 1000)}:F>` : 'None';
+            const rolesCollection = member.roles?.cache?.filter(r => r.name !== '@everyone') || null;
+            const rolesCount = rolesCollection ? rolesCollection.size : 0;
+            const highestRole = member.roles?.highest || null;
+            const roleNames = rolesCollection ? [...rolesCollection.values()].sort((a, b) => b.position - a.position).slice(0, 10).map(r => r.name) : [];
+
+            const lines = [
+                `📥 **Member Joined**`,
+                `\`\`\`ini`,
+                `[User]`,
+                `Username = ${displayTag(user)}`,
+                `Mention = <@${user.id}>`,
+                `ID = ${user.id}`,
+                `Bot = ${user.bot ? 'Yes' : 'No'}`,
+                `System = ${user.system ? 'Yes' : 'No'}`,
+                ``,
+                `[Account Info]`,
+                `Created = ${createdDate}`,
+                `Joined Server = ${joinedDate}`,
+                ``,
+                `[Server Details]`,
+                `Guild = ${guild.name} (${guild.id})`,
+                `Nickname = ${nickname}`,
+                `Pending Screening = ${pending}`,
+                `Boosting Since = ${boostingSince}`,
+                `Timeout Until = ${timedOutUntil}`,
+                ``,
+                `[Roles]`,
+                `Total Count = ${rolesCount}`,
+                rolesCount ? `Top Role = ${highestRole.name} (${highestRole.id})` : null,
+                roleNames.length ? `Role List = ${roleNames.join(', ')}` : null,
+                ``,
+                `[Media]`,
+                avatarUrl ? `Avatar = Available` : `Avatar = None`,
+                bannerUrl ? `Banner = Available` : `Banner = None`,
+                `Badges/Flags = ${flagsArr.length ? flagsArr.join(', ') : 'None'}`,
+                `\`\`\``,
+                ``,
+                avatarUrl ? `**Avatar:** ${avatarUrl}` : null,
+                bannerUrl ? `**Banner:** ${bannerUrl}` : null,
+            ].filter(Boolean);
+
+            await channel.send(lines.join('\n'));
+
+            addLog({
+                type: 'member',
+                user: displayTag(user),
+                server: guild.name,
+                details: {
+                    id: user.id,
+                    created: createdDate,
+                    joined: joinedDate,
+                    roles: roleNames.join(', ') || 'None',
+                    badges: flagsArr.join(', ') || 'None',
+                    avatar: avatarUrl || 'None',
+                    banner: bannerUrl || 'None'
+                }
+            });
+
+            console.log(`✅ Reported ${displayTag(user)}`);
+
+        } catch (err) {
+            console.error('❌ Failed:', err?.message || err);
+        }
+    });
+
+    // ===== Ticket System (Message Create) =====
+    client.on('messageCreate', async (message) => {
+        if (message.author.bot) return;
+        if (message.channel.id === config.logChannelId) return;
+
+        const isTicket = config.keywords.some(kw => 
+            message.content.toLowerCase().includes(kw)
+        );
+
+        if (isTicket) {
+            addLog({
+                type: 'ticket',
+                user: displayTag(message.author),
+                content: message.content,
+                channel: message.channel.name || 'DM',
+                server: message.guild?.name || 'DM'
+            });
+
+            const logChannel = client.channels.cache.get(config.logChannelId);
+            if (logChannel) {
+                logChannel.send(`🎫 **Ticket from ${displayTag(message.author)}**\n📨 ${message.content}\n📍 ${message.guild?.name || 'DM'}`);
+            }
         }
 
-        const client = new Client();
-        const botName = `Bot ${index + 1}`;
-
-        client.once('ready', async () => {
-            const tag = client.user.tag || client.user.username;
-            console.log(`✅ ${botName} logged in as ${tag}`);
-            addLog({ type: 'system', message: `✅ ${botName} logged in as ${tag}` });
-            await warmAllGuilds(client);
-        });
-
-        // ===== Member Join Event =====
-        client.on('guildMemberAdd', async (member) => {
-            try {
-                const guild = member.guild;
-                if (!guild.members.cache.has(member.id)) {
-                    await guild.members.fetch(member.id).catch(() => null);
-                }
-
-                const channel = client.channels.cache.get(account.logChannelId) ||
-                    (await client.channels.fetch(account.logChannelId).catch(() => null));
-                if (!channel) {
-                    console.log(`❌ ${botName}: Log channel not found`);
-                    return;
-                }
-
-                const user = member.user;
-                const createdDate = new Date(user.createdTimestamp || Date.now()).toLocaleString();
-                const joinedDate = member.joinedTimestamp ? new Date(member.joinedTimestamp).toLocaleString() : 'Unknown';
-                const avatarUrl = (typeof user.displayAvatarURL === 'function') ? user.displayAvatarURL({ size: 512 }) : null;
-                const { flagsArr, bannerUrl } = await enrichUser(user);
-                const nickname = member.nickname || 'None';
-                const pending = typeof member.pending === 'boolean' ? (member.pending ? 'Yes' : 'No') : 'Unknown';
-                const boostingSince = member.premiumSinceTimestamp ? `<t:${Math.floor(member.premiumSinceTimestamp / 1000)}:F>` : 'No';
-                const timedOutUntil = member.communicationDisabledUntilTimestamp ? `<t:${Math.floor(member.communicationDisabledUntilTimestamp / 1000)}:F>` : 'None';
-                const rolesCollection = member.roles?.cache?.filter(r => r.name !== '@everyone') || null;
-                const rolesCount = rolesCollection ? rolesCollection.size : 0;
-                const highestRole = member.roles?.highest || null;
-                const roleNames = rolesCollection ? [...rolesCollection.values()].sort((a, b) => b.position - a.position).slice(0, 10).map(r => r.name) : [];
-
-                const lines = [
-                    `📥 **Member Joined**`,
-                    `\`\`\`ini`,
-                    `[User]`,
-                    `Username = ${displayTag(user)}`,
-                    `Mention = <@${user.id}>`,
-                    `ID = ${user.id}`,
-                    `Bot = ${user.bot ? 'Yes' : 'No'}`,
-                    `System = ${user.system ? 'Yes' : 'No'}`,
-                    ``,
-                    `[Account Info]`,
-                    `Created = ${createdDate}`,
-                    `Joined Server = ${joinedDate}`,
-                    ``,
-                    `[Server Details]`,
-                    `Guild = ${guild.name} (${guild.id})`,
-                    `Nickname = ${nickname}`,
-                    `Pending Screening = ${pending}`,
-                    `Boosting Since = ${boostingSince}`,
-                    `Timeout Until = ${timedOutUntil}`,
-                    ``,
-                    `[Roles]`,
-                    `Total Count = ${rolesCount}`,
-                    rolesCount ? `Top Role = ${highestRole.name} (${highestRole.id})` : null,
-                    roleNames.length ? `Role List = ${roleNames.join(', ')}` : null,
-                    ``,
-                    `[Media]`,
-                    avatarUrl ? `Avatar = Available` : `Avatar = None`,
-                    bannerUrl ? `Banner = Available` : `Banner = None`,
-                    `Badges/Flags = ${flagsArr.length ? flagsArr.join(', ') : 'None'}`,
-                    `\`\`\``,
-                    ``,
-                    avatarUrl ? `**Avatar:** ${avatarUrl}` : null,
-                    bannerUrl ? `**Banner:** ${bannerUrl}` : null,
-                ].filter(Boolean);
-
-                await channel.send(lines.join('\n'));
-
-                addLog({
-                    type: 'member',
-                    user: displayTag(user),
-                    server: guild.name,
-                    details: {
-                        id: user.id,
-                        created: createdDate,
-                        joined: joinedDate,
-                        roles: roleNames.join(', ') || 'None',
-                        badges: flagsArr.join(', ') || 'None',
-                        avatar: avatarUrl || 'None',
-                        banner: bannerUrl || 'None'
-                    }
-                });
-
-                console.log(`✅ ${botName} reported ${displayTag(user)}`);
-
-            } catch (err) {
-                console.error(`❌ ${botName} failed:`, err?.message || err);
+        // Optional: log all messages
+        if (config.logChannelId) {
+            const logChannel = client.channels.cache.get(config.logChannelId);
+            if (logChannel) {
+                logChannel.send(`[${displayTag(message.author)}]: ${message.content}`);
             }
-        });
-
-        // ===== Guild Create Event =====
-        client.on('guildCreate', async (guild) => {
-            console.log(`Joined new guild: ${guild.name} [${guild.id}]`);
-            await warmGuildCache(guild);
-        });
-
-        // ===== Login =====
-        client.login(account.token).catch(err => {
-            console.error(`❌ ${botName} login failed:`, err.message);
-            addLog({ type: 'error', message: `❌ ${botName} login failed: ${err.message}` });
-        });
-
-        clients.push(client);
+        }
     });
 
-    addLog({ type: 'system', message: `✅ ${config.accounts.length} bot(s) started` });
+    client.on('guildCreate', async (guild) => {
+        console.log(`Joined new guild: ${guild.name} [${guild.id}]`);
+        await warmGuildCache(guild);
+    });
+
+    client.login(config.token).catch(err => {
+        botStatus = 'error';
+        addLog({ type: 'error', message: `❌ Login failed: ${err.message}` });
+    });
 }
 
-// ========== Stop All Bots ==========
-function stopAllBots() {
-    clients.forEach(client => {
-        try { client.destroy(); } catch {}
-    });
-    clients = [];
+// ========== Stop Bot ==========
+function stopBot() {
+    if (client) {
+        client.destroy();
+        client = null;
+    }
     botStatus = 'stopped';
     config.status = 'stopped';
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    addLog({ type: 'system', message: '⏹️ All bots stopped' });
+    addLog({ type: 'system', message: '⏹️ Bot stopped' });
 }
 
 // ========== API Routes ==========
 
-// Get status
 app.get('/api/status', (req, res) => {
     const uptime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
     res.json({
@@ -261,42 +274,36 @@ app.get('/api/status', (req, res) => {
     });
 });
 
-// Save config
 app.post('/api/config', (req, res) => {
-    const { accounts } = req.body;
-    if (accounts) {
-        config.accounts = accounts;
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    }
+    const { token, logChannelId, keywords } = req.body;
+    if (token !== undefined) config.token = token;
+    if (logChannelId !== undefined) config.logChannelId = logChannelId;
+    if (keywords !== undefined) config.keywords = keywords.split(',').map(k => k.trim());
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
     res.json({ success: true });
 });
 
-// Start bots
 app.post('/api/start', (req, res) => {
-    if (botStatus === 'running') return res.json({ success: false, error: 'Bots already running' });
-    if (!config.accounts || config.accounts.length === 0) {
-        return res.json({ success: false, error: 'No accounts configured' });
-    }
-    startAllBots();
+    if (botStatus === 'running') return res.json({ success: false, error: 'Bot already running' });
+    if (!config.token) return res.json({ success: false, error: 'Please enter a token first' });
+    startBot();
     res.json({ success: true });
 });
 
-// Stop bots
 app.post('/api/stop', (req, res) => {
-    stopAllBots();
+    stopBot();
     res.json({ success: true });
 });
 
-// Get logs
 app.get('/api/logs', (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     res.json(logs.slice(0, limit));
 });
 
-// Get stats
 app.get('/api/stats', (req, res) => {
+    const tickets = logs.filter(l => l.type === 'ticket').length;
     const members = logs.filter(l => l.type === 'member').length;
-    res.json({ members, total: logs.length });
+    res.json({ tickets, members, total: logs.length });
 });
 
 // ========== Start Server ==========
@@ -305,7 +312,7 @@ app.listen(PORT, () => {
     console.log(`📁 Config: ${CONFIG_FILE}`);
     console.log(`📁 Logs: ${LOGS_FILE}`);
     
-    if (config.status === 'running' && config.accounts && config.accounts.length > 0) {
-        startAllBots();
+    if (config.status === 'running' && config.token) {
+        startBot();
     }
 });
