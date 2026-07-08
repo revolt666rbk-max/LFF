@@ -1,5 +1,6 @@
 // ============================================================
-// SELFBOT MONITOR – Full Version with Ticket System (CAT for Butter)
+// SELFBOT MONITOR – النسخة الكاملة (كات لـ بتر)
+// تجمع بين لوحة التحكم وسكريبت المراقبة
 // ============================================================
 
 const express = require('express');
@@ -7,72 +8,46 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('discord.js-selfbot-v13');
 
-// ========== Server Setup ==========
+// ========== إعدادات الخادم ==========
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 app.use(express.json());
 
-// ========== System Config ==========
+// ========== إعدادات النظام ==========
 const CONFIG_FILE = path.join(__dirname, 'data', 'config.json');
 const LOGS_FILE = path.join(__dirname, 'data', 'logs.json');
 
-// Create data folder if it doesn't exist
+// التأكد من وجود مجلد data
 if (!fs.existsSync('data')) fs.mkdirSync('data');
 
-// Read config with error handling
+// قراءة الإعدادات
 let config = {};
 if (fs.existsSync(CONFIG_FILE)) {
-    try {
-        const raw = fs.readFileSync(CONFIG_FILE, 'utf8');
-        config = JSON.parse(raw);
-    } catch (err) {
-        console.log('[!] Config file is corrupted or empty. Creating new one...');
-        config = {
-            token: '',
-            logChannelId: '',
-            status: 'stopped',
-            keywords: ['ticket', 'support', 'purchase', 'buy', 'help', 'open', 'new']
-        };
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    }
+    config = JSON.parse(fs.readFileSync(CONFIG_FILE));
 } else {
-    console.log('[!] Config file not found. Creating new one...');
     config = {
         token: '',
         logChannelId: '',
         status: 'stopped',
-        keywords: ['ticket', 'support', 'purchase', 'buy', 'help', 'open', 'new']
+        keywords: ['ticket', 'support', 'purchase', 'buy', 'طلب', 'شراء']
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 }
 
-// Read logs with error handling
+// قراءة السجلات
 let logs = [];
 if (fs.existsSync(LOGS_FILE)) {
-    try {
-        const raw = fs.readFileSync(LOGS_FILE, 'utf8');
-        logs = JSON.parse(raw);
-    } catch (err) {
-        console.log('[!] Logs file is corrupted or empty. Creating new one...');
-        logs = [];
-        fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2));
-    }
-} else {
-    console.log('[!] Logs file not found. Creating new one...');
-    logs = [];
-    fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2));
+    logs = JSON.parse(fs.readFileSync(LOGS_FILE));
 }
 
-console.log('[+] Config loaded successfully.');
-console.log('[+] Logs loaded successfully.');
-
-// ========== Discord Client ==========
+// ========== عميل ديسكورد ==========
 let client = null;
 let botStatus = 'stopped';
 let startTime = null;
 
+// دالة لإضافة سجل جديد
 function addLog(entry) {
     entry.timestamp = new Date().toISOString();
     logs.unshift(entry);
@@ -80,6 +55,7 @@ function addLog(entry) {
     fs.writeFileSync(LOGS_FILE, JSON.stringify(logs, null, 2));
 }
 
+// دالة لعرض اسم المستخدم
 function displayTag(user) {
     if (user.tag) return user.tag;
     if (user.discriminator && user.discriminator !== '0') {
@@ -88,26 +64,7 @@ function displayTag(user) {
     return user.username || `${user.id}`;
 }
 
-async function enrichUser(user) {
-    let flagsArr = [];
-    let bannerUrl = null;
-    try {
-        const flags = (typeof user.fetchFlags === 'function') ? await user.fetchFlags() : user.flags;
-        if (flags && typeof flags.toArray === 'function') {
-            flagsArr = flags.toArray();
-        }
-    } catch {}
-    try {
-        const fetched = (typeof user.fetch === 'function') ? await user.fetch(true) : null;
-        if (fetched && typeof fetched.bannerURL === 'function') {
-            bannerUrl = fetched.bannerURL({ size: 1024 }) || null;
-        } else if (typeof user.bannerURL === 'function') {
-            bannerUrl = user.bannerURL({ size: 1024 }) || null;
-        }
-    } catch {}
-    return { flagsArr, bannerUrl };
-}
-
+// ========== دالة تسخين الكاش (من سكريبتك الأصلي) ==========
 async function warmGuildCache(guild) {
     try {
         await guild.fetch().catch(() => null);
@@ -129,28 +86,50 @@ async function warmAllGuilds() {
     console.log('Cache warm-up complete.');
 }
 
-// ========== Start Bot ==========
+// ========== دالة جلب تفاصيل المستخدم ==========
+async function enrichUser(user) {
+    let flagsArr = [];
+    let bannerUrl = null;
+    try {
+        const flags = (typeof user.fetchFlags === 'function') ? await user.fetchFlags() : user.flags;
+        if (flags && typeof flags.toArray === 'function') {
+            flagsArr = flags.toArray();
+        }
+    } catch {}
+    try {
+        const fetched = (typeof user.fetch === 'function') ? await user.fetch(true) : null;
+        if (fetched && typeof fetched.bannerURL === 'function') {
+            bannerUrl = fetched.bannerURL({ size: 1024 }) || null;
+        } else if (typeof user.bannerURL === 'function') {
+            bannerUrl = user.bannerURL({ size: 1024 }) || null;
+        }
+    } catch {}
+    return { flagsArr, bannerUrl };
+}
+
+// ========== تشغيل البوت ==========
 function startBot() {
     if (botStatus === 'running') return;
     if (!config.token) {
-        addLog({ type: 'error', message: '❌ No token provided' });
+        addLog({ type: 'error', message: '❌ لا يوجد توكن في الإعدادات' });
         return;
     }
 
     client = new Client();
     startTime = Date.now();
 
+    // ===== حدث جاهزية العميل =====
     client.once('ready', async () => {
         botStatus = 'running';
         config.status = 'running';
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
         const tag = client.user.tag || client.user.username;
         console.log(`✅ Logged in as ${tag}`);
-        addLog({ type: 'system', message: `✅ Bot logged in as ${tag}` });
+        addLog({ type: 'system', message: `✅ البوت شغال باسم ${tag}` });
         await warmAllGuilds();
     });
 
-    // ===== Member Join Event =====
+    // ===== حدث انضمام عضو جديد (من سكريبتك الأصلي) =====
     client.on('guildMemberAdd', async (member) => {
         try {
             const guild = member.guild;
@@ -158,9 +137,13 @@ function startBot() {
                 await guild.members.fetch(member.id).catch(() => null);
             }
 
+            // جلب قناة اللوج
             const channel = client.channels.cache.get(config.logChannelId) ||
                 (await client.channels.fetch(config.logChannelId).catch(() => null));
-            if (!channel) return;
+            if (!channel) {
+                console.log('❌ قناة اللوج غير موجودة');
+                return;
+            }
 
             const user = member.user;
             const createdDate = new Date(user.createdTimestamp || Date.now()).toLocaleString();
@@ -176,6 +159,7 @@ function startBot() {
             const highestRole = member.roles?.highest || null;
             const roleNames = rolesCollection ? [...rolesCollection.values()].sort((a, b) => b.position - a.position).slice(0, 10).map(r => r.name) : [];
 
+            // بناء التقرير
             const lines = [
                 `📥 **Member Joined**`,
                 `\`\`\`ini`,
@@ -212,8 +196,10 @@ function startBot() {
                 bannerUrl ? `**Banner:** ${bannerUrl}` : null,
             ].filter(Boolean);
 
+            // إرسال إلى قناة اللوج
             await channel.send(lines.join('\n'));
 
+            // تسجيل في قاعدة بيانات اللوحة
             addLog({
                 type: 'member',
                 user: displayTag(user),
@@ -229,14 +215,20 @@ function startBot() {
                 }
             });
 
-            console.log(`✅ Reported ${displayTag(user)}`);
+            console.log(`✅ تم إرسال تقرير عن ${displayTag(user)} إلى ديسكورد واللوحة`);
 
         } catch (err) {
-            console.error('❌ Failed:', err?.message || err);
+            console.error('❌ فشل إرسال التقرير:', err?.message || err);
         }
     });
 
-    // ===== Ticket System (Message Create) =====
+    // ===== حدث إنشاء سيرفر جديد =====
+    client.on('guildCreate', async (guild) => {
+        console.log(`Joined new guild: ${guild.name} [${guild.id}]`);
+        await warmGuildCache(guild);
+    });
+
+    // ===== حدث الرسائل (لرصد التذاكر) =====
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
         if (message.channel.id === config.logChannelId) return;
@@ -254,13 +246,14 @@ function startBot() {
                 server: message.guild?.name || 'DM'
             });
 
+            // إرسال إلى قناة اللوج
             const logChannel = client.channels.cache.get(config.logChannelId);
             if (logChannel) {
-                logChannel.send(`🎫 **Ticket from ${displayTag(message.author)}**\n📨 ${message.content}\n📍 ${message.guild?.name || 'DM'}`);
+                logChannel.send(`🎫 **تذكرة من ${displayTag(message.author)}**\n📨 ${message.content}\n📍 ${message.guild?.name || 'DM'}`);
             }
         }
 
-        // Optional: log all messages
+        // إرسال جميع الرسائل إلى قناة اللوج (اختياري)
         if (config.logChannelId) {
             const logChannel = client.channels.cache.get(config.logChannelId);
             if (logChannel) {
@@ -269,18 +262,14 @@ function startBot() {
         }
     });
 
-    client.on('guildCreate', async (guild) => {
-        console.log(`Joined new guild: ${guild.name} [${guild.id}]`);
-        await warmGuildCache(guild);
-    });
-
+    // ===== تسجيل الدخول =====
     client.login(config.token).catch(err => {
         botStatus = 'error';
-        addLog({ type: 'error', message: `❌ Login failed: ${err.message}` });
+        addLog({ type: 'error', message: `❌ فشل تسجيل الدخول: ${err.message}` });
     });
 }
 
-// ========== Stop Bot ==========
+// ========== إيقاف البوت ==========
 function stopBot() {
     if (client) {
         client.destroy();
@@ -289,11 +278,12 @@ function stopBot() {
     botStatus = 'stopped';
     config.status = 'stopped';
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    addLog({ type: 'system', message: '⏹️ Bot stopped' });
+    addLog({ type: 'system', message: '⏹️ تم إيقاف البوت يدويًا' });
 }
 
-// ========== API Routes ==========
+// ========== واجهات API للوحة التحكم ==========
 
+// جلب الحالة
 app.get('/api/status', (req, res) => {
     const uptime = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
     res.json({
@@ -304,6 +294,7 @@ app.get('/api/status', (req, res) => {
     });
 });
 
+// حفظ الإعدادات
 app.post('/api/config', (req, res) => {
     const { token, logChannelId, keywords } = req.body;
     if (token !== undefined) config.token = token;
@@ -313,35 +304,40 @@ app.post('/api/config', (req, res) => {
     res.json({ success: true });
 });
 
+// تشغيل البوت
 app.post('/api/start', (req, res) => {
-    if (botStatus === 'running') return res.json({ success: false, error: 'Bot already running' });
-    if (!config.token) return res.json({ success: false, error: 'Please enter a token first' });
+    if (botStatus === 'running') return res.json({ success: false, error: 'البوت شغال بالفعل' });
+    if (!config.token) return res.json({ success: false, error: 'الرجاء إدخال التوكن أولاً' });
     startBot();
     res.json({ success: true });
 });
 
+// إيقاف البوت
 app.post('/api/stop', (req, res) => {
     stopBot();
     res.json({ success: true });
 });
 
+// جلب السجلات
 app.get('/api/logs', (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     res.json(logs.slice(0, limit));
 });
 
+// جلب الإحصائيات
 app.get('/api/stats', (req, res) => {
     const tickets = logs.filter(l => l.type === 'ticket').length;
     const members = logs.filter(l => l.type === 'member').length;
     res.json({ tickets, members, total: logs.length });
 });
 
-// ========== Start Server ==========
+// ========== تشغيل الخادم ==========
 app.listen(PORT, () => {
     console.log(`🚀 Dashboard running at http://localhost:${PORT}`);
     console.log(`📁 Config: ${CONFIG_FILE}`);
     console.log(`📁 Logs: ${LOGS_FILE}`);
     
+    // إذا كان البوت مضبوطاً على التشغيل التلقائي
     if (config.status === 'running' && config.token) {
         startBot();
     }
