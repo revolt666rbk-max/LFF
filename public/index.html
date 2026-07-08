@@ -1,230 +1,640 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ Selfbot Dashboard</title>
+    <title>🛡️ SELFBOT PRO – Dashboard</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
+        /* ===== Global Styles ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #0d1117;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0a0e17;
             color: #e6edf3;
+            min-height: 100vh;
             padding: 20px;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0e17;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f6feb;
+            border-radius: 10px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ===== Header ===== */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 20px 0;
-            border-bottom: 1px solid #30363d;
+            border-bottom: 1px solid #1c2333;
             margin-bottom: 30px;
             flex-wrap: wrap;
+            gap: 15px;
         }
-        .header h1 { color: #58a6ff; font-size: 28px; }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #58a6ff, #1f6feb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo span {
+            font-size: 14px;
+            color: #8b949e;
+            background: #161b22;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid #30363d;
+        }
+
         .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             padding: 8px 18px;
             border-radius: 30px;
             background: #161b22;
             border: 1px solid #30363d;
         }
+
         .status-dot {
-            display: inline-block;
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            margin-right: 8px;
+            display: inline-block;
         }
-        .online { background: #2ea043; }
-        .offline { background: #8b949e; }
-        .error { background: #da3633; }
+        .status-dot.online { background: #2ea043; box-shadow: 0 0 10px #2ea04366; }
+        .status-dot.offline { background: #8b949e; }
+        .status-dot.error { background: #da3633; box-shadow: 0 0 10px #da363366; }
+
+        .uptime {
+            color: #8b949e;
+            font-size: 13px;
+            margin-left: 5px;
+        }
+
+        /* ===== Stats Grid ===== */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
+
         .stat-card {
             background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
+            border: 1px solid #1c2333;
+            border-radius: 16px;
+            padding: 22px 25px;
+            transition: all 0.3s ease;
         }
-        .stat-card .label { color: #8b949e; font-size: 13px; }
-        .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 5px; }
+
+        .stat-card:hover {
+            border-color: #1f6feb;
+            transform: translateY(-3px);
+        }
+
+        .stat-card .label {
+            color: #8b949e;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-top: 8px;
+            color: #f0f6fc;
+        }
+
+        .stat-card .value.green { color: #2ea043; }
+        .stat-card .value.blue { color: #58a6ff; }
+        .stat-card .value.pink { color: #f778ba; }
+
+        /* ===== Cards ===== */
         .card {
             background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
+            border: 1px solid #1c2333;
+            border-radius: 16px;
             padding: 25px;
             margin-bottom: 25px;
         }
-        .card h2 { margin-bottom: 20px; font-size: 18px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; color: #8b949e; font-size: 13px; margin-bottom: 5px; }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title .badge {
+            font-size: 12px;
+            background: #1f6feb33;
+            color: #58a6ff;
+            padding: 2px 12px;
+            border-radius: 20px;
+        }
+
+        /* ===== Forms ===== */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #8b949e;
+            font-size: 13px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
         .form-group input {
             width: 100%;
-            padding: 10px 14px;
+            padding: 12px 16px;
             background: #0d1117;
             border: 1px solid #30363d;
-            border-radius: 8px;
+            border-radius: 10px;
             color: #e6edf3;
             font-size: 14px;
+            transition: 0.3s;
         }
-        .form-group input:focus { outline: none; border-color: #58a6ff; }
-        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #1f6feb;
+            box-shadow: 0 0 0 3px #1f6feb33;
+        }
+
+        .account-entry {
+            background: #0d1117;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #1c2333;
+        }
+
+        .account-entry .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
         .btn {
-            padding: 10px 24px;
+            padding: 12px 28px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: 0.3s;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
-        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
-        .btn-success { background: #2ea043; color: white; }
-        .btn-danger { background: #da3633; color: white; }
-        .btn-primary { background: #1f6feb; color: white; }
-        .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
-        .log-container { max-height: 400px; overflow-y: auto; }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        .btn-success {
+            background: #2ea043;
+            color: white;
+        }
+        .btn-danger {
+            background: #da3633;
+            color: white;
+        }
+        .btn-primary {
+            background: #1f6feb;
+            color: white;
+        }
+        .btn-secondary {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+        }
+        .btn-warning {
+            background: #d29922;
+            color: white;
+        }
+
+        /* ===== Logs ===== */
+        .log-container {
+            max-height: 450px;
+            overflow-y: auto;
+        }
+
         .log-item {
             display: flex;
             gap: 15px;
-            padding: 10px 14px;
+            padding: 12px 16px;
             background: #0d1117;
-            border-radius: 8px;
+            border-radius: 10px;
             margin-bottom: 8px;
-            border-left: 3px solid #58a6ff;
+            border-left: 3px solid #1f6feb;
+            transition: 0.2s;
         }
-        .log-item.ticket { border-left-color: #d29922; }
+
+        .log-item:hover {
+            background: #161b22;
+        }
+
+        .log-item .icon {
+            font-size: 18px;
+            line-height: 1.4;
+        }
+
+        .log-item .content {
+            flex: 1;
+        }
+
+        .log-item .content .user {
+            font-weight: 600;
+            color: #58a6ff;
+        }
+
+        .log-item .content .msg {
+            color: #c9d1d9;
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        .log-item .content .meta {
+            color: #8b949e;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
         .log-item.member { border-left-color: #2ea043; }
         .log-item.error { border-left-color: #da3633; }
-        .log-item .user { font-weight: 600; color: #58a6ff; }
-        .log-item .meta { color: #8b949e; font-size: 12px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } }
+        .log-item.system { border-left-color: #58a6ff; }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .header { flex-direction: column; align-items: stretch; }
+            .account-entry .form-row { grid-template-columns: 1fr; }
+            .grid { grid-template-columns: 1fr 1fr; }
+            .btn-group { flex-direction: column; }
+            .btn { justify-content: center; }
+        }
+
+        @media (max-width: 480px) {
+            .grid { grid-template-columns: 1fr; }
+            .logo h1 { font-size: 22px; }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8b949e;
+        }
+
+        .empty-state .big-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <header class="header">
-        <h1>🛡️ Selfbot Dashboard</h1>
-        <div class="status-badge">
-            <span class="status-dot offline" id="statusDot"></span>
-            <span id="statusText">⏹️ متوقف</span>
-        </div>
-    </header>
+    <div class="container">
+        <!-- ===== Header ===== -->
+        <header class="header">
+            <div class="logo">
+                <h1>🛡️ SELFBOT PRO</h1>
+                <span>v2.0</span>
+            </div>
+            <div class="status-badge">
+                <span class="status-dot offline" id="statusDot"></span>
+                <span id="statusText">⏹️ Stopped</span>
+                <span class="uptime" id="uptimeText">⏱️ --</span>
+            </div>
+        </header>
 
-    <div class="grid">
-        <div class="stat-card"><div class="label">📊 التقارير</div><div class="value" id="totalLogs">0</div></div>
-        <div class="stat-card"><div class="label">🎫 التذاكر</div><div class="value" id="ticketCount">0</div></div>
-        <div class="stat-card"><div class="label">👤 أعضاء جدد</div><div class="value" id="memberCount">0</div></div>
-        <div class="stat-card"><div class="label">⏱️ وقت التشغيل</div><div class="value" id="uptimeStats">--</div></div>
+        <!-- ===== Stats ===== -->
+        <div class="grid">
+            <div class="stat-card">
+                <div class="label">📊 Total Reports</div>
+                <div class="value blue" id="totalLogs">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">👤 Members Joined</div>
+                <div class="value green" id="memberCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">⏱️ Uptime</div>
+                <div class="value pink" id="uptimeStats">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">🤖 Bots Active</div>
+                <div class="value blue" id="botCount">0</div>
+            </div>
+        </div>
+
+        <!-- ===== Settings ===== -->
+        <div class="card">
+            <div class="card-title">⚙️ Account Settings <span class="badge">Multi-Account Support</span></div>
+            <div id="accountsContainer">
+                <!-- Accounts will be rendered here by JavaScript -->
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" id="addAccountBtn">➕ Add Account</button>
+                <button class="btn btn-secondary" id="saveBtn">💾 Save All</button>
+                <button class="btn btn-success" id="startBtn">▶️ Start All</button>
+                <button class="btn btn-danger" id="stopBtn">⏹️ Stop All</button>
+            </div>
+        </div>
+
+        <!-- ===== Logs ===== -->
+        <div class="card">
+            <div class="card-title">📋 Logs <span class="badge" id="logCount">0</span></div>
+            <div class="log-container" id="logContainer">
+                <div class="empty-state">
+                    <div class="big-icon">📭</div>
+                    <p>No logs yet</p>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>⚙️ الإعدادات</h2>
-        <div class="form-group"><label>🔑 التوكن</label><input type="password" id="tokenInput" placeholder="ضع التوكن هنا"></div>
-        <div class="form-row">
-            <div class="form-group"><label>📢 معرف قناة اللوج</label><input type="text" id="channelInput" placeholder="معرف القناة"></div>
-            <div class="form-group"><label>🔍 كلمات مفتاحية</label><input type="text" id="keywordsInput" placeholder="ticket,support,purchase"></div>
-        </div>
-        <div class="btn-group">
-            <button class="btn btn-secondary" id="saveBtn">💾 حفظ</button>
-            <button class="btn btn-success" id="startBtn">▶️ تشغيل</button>
-            <button class="btn btn-danger" id="stopBtn">⏹️ إيقاف</button>
-        </div>
-    </div>
+    <script>
+        // ============================================================
+        // JavaScript – Full Control Panel
+        // ============================================================
 
-    <div class="card">
-        <h2>📋 السجلات</h2>
-        <div class="log-container" id="logContainer"><div style="text-align:center;color:#8b949e;padding:30px;">📭 لا توجد سجلات</div></div>
-    </div>
-</div>
+        const API = window.location.origin;
+        let accounts = [];
 
-<script>
-const API = '';
-async function loadStatus() {
-    try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
-        const dot = document.getElementById('statusDot');
-        const text = document.getElementById('statusText');
-        if (data.status === 'running') { dot.className = 'status-dot online'; text.textContent = '🟢 شغال'; }
-        else if (data.status === 'error') { dot.className = 'status-dot error'; text.textContent = '🔴 خطأ'; }
-        else { dot.className = 'status-dot offline'; text.textContent = '⏹️ متوقف'; }
-        if (data.config) {
-            document.getElementById('tokenInput').value = data.config.token || '';
-            document.getElementById('channelInput').value = data.config.logChannelId || '';
-            document.getElementById('keywordsInput').value = (data.config.keywords || []).join(', ');
+        // ===== DOM Elements =====
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const uptimeText = document.getElementById('uptimeText');
+        const uptimeStats = document.getElementById('uptimeStats');
+        const logContainer = document.getElementById('logContainer');
+        const totalLogs = document.getElementById('totalLogs');
+        const memberCount = document.getElementById('memberCount');
+        const botCount = document.getElementById('botCount');
+        const logCount = document.getElementById('logCount');
+        const accountsContainer = document.getElementById('accountsContainer');
+
+        // ===== Render Accounts =====
+        function renderAccounts() {
+            accountsContainer.innerHTML = '';
+            accounts.forEach((account, index) => {
+                const div = document.createElement('div');
+                div.className = 'account-entry';
+                div.innerHTML = `
+                    <h4 style="color:#58a6ff;margin-bottom:10px;">🤖 Account ${index + 1}</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>🔑 Token</label>
+                            <input type="password" class="token-input" value="${account.token || ''}" placeholder="Enter token">
+                        </div>
+                        <div class="form-group">
+                            <label>📢 Log Channel ID</label>
+                            <input type="text" class="channel-input" value="${account.logChannelId || ''}" placeholder="Channel ID">
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" style="padding:6px 12px;font-size:12px;margin-top:5px;" onclick="removeAccount(${index})">🗑️ Remove</button>
+                `;
+                accountsContainer.appendChild(div);
+            });
+            updateBotCount();
         }
-        const u = data.uptime || 0;
-        const h = Math.floor(u/3600), m = Math.floor((u%3600)/60), s = u%60;
-        document.getElementById('uptimeStats').textContent = h>0?`${h}h ${m}m`:`${m}m ${s}s`;
-        loadLogs();
-    } catch(e) { console.error(e); }
-}
 
-async function loadLogs() {
-    try {
-        const res = await fetch('/api/logs?limit=30');
-        const logs = await res.json();
-        const container = document.getElementById('logContainer');
-        if (logs.length === 0) { container.innerHTML = '<div style="text-align:center;color:#8b949e;padding:30px;">📭 لا توجد سجلات</div>'; return; }
-        let html = '', tickets=0, members=0;
-        logs.forEach(l => {
-            if (l.type === 'ticket') tickets++;
-            if (l.type === 'member') members++;
-            const icon = l.type === 'ticket' ? '🎫' : l.type === 'member' ? '👤' : l.type === 'error' ? '❌' : '📝';
-            const cls = l.type === 'ticket' ? 'ticket' : l.type === 'member' ? 'member' : l.type === 'error' ? 'error' : '';
-            const time = new Date(l.timestamp).toLocaleString('ar-EG');
-            html += `<div class="log-item ${cls}">
-                <span>${icon}</span>
-                <div><span class="user">${l.user || 'System'}</span>
-                ${l.message ? `<div>${l.message}</div>` : ''}
-                ${l.content ? `<div>📨 ${l.content}</div>` : ''}
-                <div class="meta">🕒 ${time}</div></div>
-            </div>`;
+        // ===== Add Account =====
+        document.getElementById('addAccountBtn').addEventListener('click', () => {
+            accounts.push({ token: '', logChannelId: '' });
+            renderAccounts();
         });
-        container.innerHTML = html;
-        document.getElementById('totalLogs').textContent = logs.length;
-        document.getElementById('ticketCount').textContent = tickets;
-        document.getElementById('memberCount').textContent = members;
-    } catch(e) { console.error(e); }
-}
 
-document.getElementById('saveBtn').onclick = async () => {
-    const res = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            token: document.getElementById('tokenInput').value,
-            logChannelId: document.getElementById('channelInput').value,
-            keywords: document.getElementById('keywordsInput').value
-        })
-    });
-    const data = await res.json();
-    alert(data.success ? '✅ تم الحفظ' : '❌ فشل الحفظ');
-};
+        // ===== Remove Account =====
+        function removeAccount(index) {
+            accounts.splice(index, 1);
+            renderAccounts();
+        }
 
-document.getElementById('startBtn').onclick = async () => {
-    const res = await fetch('/api/start', { method: 'POST' });
-    const data = await res.json();
-    alert(data.success ? '✅ تم التشغيل' : '❌ ' + (data.error || 'فشل'));
-    loadStatus();
-};
+        // ===== Collect Account Data =====
+        function collectAccounts() {
+            const inputs = document.querySelectorAll('.account-entry');
+            const newAccounts = [];
+            inputs.forEach((entry) => {
+                const token = entry.querySelector('.token-input').value;
+                const channel = entry.querySelector('.channel-input').value;
+                if (token || channel) {
+                    newAccounts.push({ token, logChannelId: channel });
+                }
+            });
+            return newAccounts;
+        }
 
-document.getElementById('stopBtn').onclick = async () => {
-    await fetch('/api/stop', { method: 'POST' });
-    alert('⏹️ تم الإيقاف');
-    loadStatus();
-};
+        // ===== Update Bot Count =====
+        function updateBotCount() {
+            botCount.textContent = accounts.filter(a => a.token && a.token !== '').length;
+        }
 
-setInterval(loadStatus, 5000);
-loadStatus();
-</script>
+        // ===== Load Status =====
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+
+                // Update status
+                const status = data.status;
+                if (status === 'running') {
+                    statusDot.className = 'status-dot online';
+                    statusText.textContent = '🟢 Running';
+                } else if (status === 'error') {
+                    statusDot.className = 'status-dot error';
+                    statusText.textContent = '🔴 Error';
+                } else {
+                    statusDot.className = 'status-dot offline';
+                    statusText.textContent = '⏹️ Stopped';
+                }
+
+                // Uptime
+                const uptime = data.uptime || 0;
+                const hours = Math.floor(uptime / 3600);
+                const minutes = Math.floor((uptime % 3600) / 60);
+                const seconds = uptime % 60;
+                const uptimeStr = hours > 0 ? `${hours}h ${minutes}m ${seconds}s` : `${minutes}m ${seconds}s`;
+                uptimeText.textContent = `⏱️ ${uptimeStr}`;
+                uptimeStats.textContent = uptimeStr;
+
+                // Load accounts from server
+                if (data.config && data.config.accounts) {
+                    accounts = data.config.accounts;
+                    renderAccounts();
+                }
+
+                loadLogs();
+
+            } catch (e) {
+                console.error('Failed to load status:', e);
+            }
+        }
+
+        // ===== Load Logs =====
+        async function loadLogs() {
+            try {
+                const res = await fetch('/api/logs?limit=50');
+                const logs = await res.json();
+
+                if (logs.length === 0) {
+                    logContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="big-icon">📭</div>
+                            <p>No logs yet</p>
+                        </div>
+                    `;
+                    logCount.textContent = '0';
+                    return;
+                }
+
+                let html = '';
+                let members = 0;
+                logs.forEach(log => {
+                    if (log.type === 'member') members++;
+
+                    let icon = '📝';
+                    let cls = '';
+                    if (log.type === 'member') { icon = '👤'; cls = 'member'; }
+                    else if (log.type === 'error') { icon = '❌'; cls = 'error'; }
+                    else if (log.type === 'system') { icon = '⚙️'; cls = 'system'; }
+
+                    const time = new Date(log.timestamp).toLocaleString();
+
+                    html += `
+                        <div class="log-item ${cls}">
+                            <span class="icon">${icon}</span>
+                            <div class="content">
+                                <span class="user">${log.user || 'System'}</span>
+                                ${log.message ? `<div class="msg">${log.message}</div>` : ''}
+                                ${log.content ? `<div class="msg">📨 ${log.content}</div>` : ''}
+                                ${log.server ? `<div class="meta">📌 ${log.server}</div>` : ''}
+                                <div class="meta">🕒 ${time}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                logContainer.innerHTML = html;
+                logCount.textContent = logs.length;
+                totalLogs.textContent = logs.length;
+                memberCount.textContent = members;
+
+            } catch (e) {
+                console.error('Failed to load logs:', e);
+            }
+        }
+
+        // ===== Save Configuration =====
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            const updatedAccounts = collectAccounts();
+            if (updatedAccounts.length === 0) {
+                alert('⚠️ Please add at least one account with a token.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ accounts: updatedAccounts })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    accounts = updatedAccounts;
+                    renderAccounts();
+                    alert('✅ Configuration saved successfully!');
+                    loadStatus();
+                }
+            } catch (e) {
+                alert('❌ Failed to save configuration');
+            }
+        });
+
+        // ===== Start Bots =====
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            const updatedAccounts = collectAccounts();
+            if (updatedAccounts.length === 0) {
+                alert('⚠️ No accounts configured. Please add at least one account.');
+                return;
+            }
+            // Save first
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ accounts: updatedAccounts })
+                });
+                accounts = updatedAccounts;
+                renderAccounts();
+            } catch {}
+
+            try {
+                const res = await fetch('/api/start', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert('✅ Bots started successfully!');
+                    loadStatus();
+                } else {
+                    alert('❌ ' + (data.error || 'Failed to start bots'));
+                }
+            } catch (e) {
+                alert('❌ Connection error');
+            }
+        });
+
+        // ===== Stop Bots =====
+        document.getElementById('stopBtn').addEventListener('click', async () => {
+            try {
+                await fetch('/api/stop', { method: 'POST' });
+                alert('⏹️ All bots stopped');
+                loadStatus();
+            } catch (e) {
+                alert('❌ Failed to stop bots');
+            }
+        });
+
+        // ===== Auto-refresh =====
+        setInterval(loadStatus, 5000);
+
+        // ===== Initial Load =====
+        loadStatus();
+    </script>
 </body>
 </html>
